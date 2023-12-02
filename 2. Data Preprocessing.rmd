@@ -1,0 +1,290 @@
+---
+title: "Tutorial 2"
+author: "Kugan Parthiban"
+date: "2023-11-30"
+output: html_document
+---
+
+Import Libraries
+
+```{r}
+library(dplyr)
+library (DataExplorer)
+library(VIM)
+library(mice)
+library(missForest)
+library(tidyr)
+library(tidyverse)
+
+```
+
+#Load Data
+
+```{r}
+df <- read.csv("C:/Users/kugan/Desktop/APU DS/AML/raw data.csv", header = T)
+
+
+
+```
+
+#View first 10 rows
+```{r}
+head(df, n=10)
+
+df$customer_id <- NULL
+```
+Check for missing values
+
+```{r}
+
+colSums(sapply(df,is.na))
+
+```
+
+Impute 5% of missing values in random with missForest library
+```{r}
+
+df_na <- prodNA(df, noNA = 0.05) # introduces 5% missing values at random
+
+
+#df$country <- prodNA(df$country, noNA = 0.05)
+#df$gender <- prodNA(df$gender, noNA = 0.05)
+#df$age <- prodNA(df$age, noNA = 0.05)
+#df$estimated_salary <- prodNA(df$estimated_salary, noNA = 0.05)
+str(df)
+
+```
+
+
+#Check for missing values 
+```{r}
+
+colSums(sapply(df_na,is.na))
+
+```
+
+```{r}
+plot_missing (df_na) # uses DataExplorer package
+
+```
+#Pareto chart using dlookr package to view the proportion of missing values in each column
+```{r}
+library(dlookr)
+plot_na_pareto(df_na, only_na = T)
+
+```
+#Plot to visualize missing values
+```{r}
+library(VIM)
+vim_plot <- aggr(df_na, numbers=TRUE, prop = c(TRUE, FALSE)) # needs 
+# Reference and explain this plot
+md.pattern(df) # uses mice package
+
+```
+
+
+
+```{r}
+df_na <- rename(df_na,Country=country,CreditScore=credit_score, Gender=gender, Age=age, Tenure=tenure, BalanceInBank=balance, NumberOfProducts=products_number, CreditCardStatus=credit_card, MembershipStatus=active_member, SalaryEstimate=estimated_salary, ChurnStatus=churn )
+
+df_na
+```
+
+```{r}
+
+```
+
+
+Convert NumberofProducts, country and gender to factors
+```{r}
+df_na$NumberOfProducts <- as.factor(df_na$NumberOfProducts)
+df_na$Country <- as.factor(df_na$Country)
+df_na$Gender <- as.factor(df_na$Gender)
+df_na$ChurnStatus <- as.factor(df_na$ChurnStatus)
+df_na$CreditCardStatus <- as.factor(df_na$CreditCardStatus)
+df_na$MembershipStatus <- as.factor(df_na$MembershipStatus)
+
+```
+
+```{r}
+summary(df_na)
+
+str(df_na)
+```
+
+Impute df_na with mice using linear regression for numerical varaible and random forest for factors
+https://www.youtube.com/watch?v=sNNoTd7xI-4&t=1331s
+
+```{r}
+#methods(mice)
+
+my_imp <- mice(df_na, m=5,method = c("norm.predict","rf","rf","norm.predict","norm.predict","norm.predict","rf","rf","rf","norm.predict","rf"), maxit=20)
+
+
+
+```
+
+
+Comparing estimated values with the mean values of the numerical features. The imputations have 5 different data frame. Choose the data which estimated values are near to the mean.
+```{r}
+summary(df_na$Age)
+summary(df_na$CreditScore)
+summary(df_na$SalaryEstimate)
+
+```
+```{r}
+my_imp$imp$Age
+
+my_imp$imp$CreditScore
+
+my_imp$imp$SalaryEstimate
+
+
+```
+
+
+The 5th dataset is chosen since the estimated values have a smaller deviation to the mean value.
+
+```{r}
+final_clean_ds <- complete(my_imp,5)
+head(final_clean_ds)
+
+```
+#EDA
+```{r}
+#summary of the data
+summary(final_clean_ds)
+
+
+#data structure
+str(final_clean_ds)
+
+
+#dimension of data
+dim(final_clean_ds)
+
+```
+
+```{r}
+final_clean_ds$ChurnStatus <- as.factor(final_clean_ds$ChurnStatus)
+final_clean_ds$CreditCardStatus <- as.factor(final_clean_ds$CreditCardStatus)
+final_clean_ds$MembershipStatus <- as.factor(final_clean_ds$MembershipStatus)
+
+summary(final_clean_ds)
+str(final_clean_ds)
+```
+
+
+
+
+```{r}
+
+#https://www.youtube.com/watch?v=McL9MMwmIZY
+head(final_clean_ds)
+
+library(ggplot2)
+
+#scatter plot between 2 continous variable
+
+ggplot(final_clean_ds,aes(x=Age,y=BalanceInBank)) +
+  geom_point(color='red') +
+  labs(x="Age",
+       y="Balance in Bank",
+       title="Age vs Balance in Bank")
+
+#Histogram
+ggplot(final_clean_ds,aes(x=Age)) +
+  geom_histogram(bins=20)
+
+
+#frequency polygon
+#Histogram
+ggplot(final_clean_ds,aes(x=Age)) +
+  geom_freqpoly(bins=10)
+
+#Bar chart (Target Variable)
+ggplot(final_clean_ds, aes(x=ChurnStatus)) +
+  geom_bar(color='black',
+           fill="skyblue")
+
+ggplot(final_clean_ds, aes(x=ChurnStatus,
+              fill=ChurnStatus)) +
+  geom_bar() +
+  scale_fill_brewer(palette = 'Dark2')
+
+#boxplot 
+ggplot(final_clean_ds, aes(x=ChurnStatus,
+                           y=BalanceInBank,
+                           fill=ChurnStatus)) +
+  geom_boxplot(show.legend=FALSE)  +
+  scale_fill_brewer(palette = 'Dark2')
+
+
+#bar chart to displace number of products prchased by the customer
+plot_bar(final_clean_ds$NumberOfProducts)
+
+#Gender
+plot_bar(final_clean_ds$Gender, title = 'Gender')
+
+#Country
+barplot(table(final_clean_ds$Country), main="Country Distribution", col = c('orange','skyblue', 'grey'))
+
+
+
+
+```
+
+#Checking unique values for categorical column for label encoding
+```{r}
+unique(final_clean_ds$Country)
+
+unique(final_clean_ds$Gender)
+
+
+```
+#label encoding 
+```{r}
+final_clean_ds$Gender <- factor(final_clean_ds$Gender, 
+                                levels = c("Female", "Male"),
+                                labels = c(0,1))
+
+View(final_clean_ds)
+
+```
+
+#one hot encoding
+```{r}
+encoded1_df <- final_clean_ds %>%
+  mutate(France = ifelse(final_clean_ds$Country == "France",1,0),
+         Germany = ifelse(final_clean_ds$Country == "Germany", 1,0),
+         Spain = ifelse(final_clean_ds$Country == "Spain", 1,0))
+
+View(encoded1_df)
+
+
+
+```
+
+
+#standardization
+#https://www.youtube.com/watch?v=ewpVWnEapoA
+```{r}
+#numerical column is normalized with z-score with mean=0 and SD=1
+
+z_score <- function(x){
+  res <- (x-mean(x))/sd(x)
+  return(res)
+}
+
+encoded1_df[,c(1,4,5,6,10)] <- sapply(encoded1_df[,c(1,4,5,6,10)], z_score)
+View(encoded1_df)
+
+```
+
+#Drop country column
+```{r}
+
+encoded1_df$Country <- NULL
+View(encoded1_df)
+
+```
