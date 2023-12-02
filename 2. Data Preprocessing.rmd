@@ -5,7 +5,7 @@ date: "2023-11-30"
 output: html_document
 ---
 
-Import Libraries
+#Import Libraries
 
 ```{r}
 library(dplyr)
@@ -15,25 +15,21 @@ library(mice)
 library(missForest)
 library(tidyr)
 library(tidyverse)
-
 ```
-
 #Load Data
-
 ```{r}
 df <- read.csv("C:/Users/kugan/Desktop/APU DS/AML/raw data.csv", header = T)
 
-
-
 ```
-
 #View first 10 rows
 ```{r}
 head(df, n=10)
 
+#Drop customer id
 df$customer_id <- NULL
+
 ```
-Check for missing values
+#Check for missing values
 
 ```{r}
 
@@ -54,8 +50,6 @@ df_na <- prodNA(df, noNA = 0.05) # introduces 5% missing values at random
 str(df)
 
 ```
-
-
 #Check for missing values 
 ```{r}
 
@@ -79,23 +73,12 @@ library(VIM)
 vim_plot <- aggr(df_na, numbers=TRUE, prop = c(TRUE, FALSE)) # needs 
 # Reference and explain this plot
 md.pattern(df) # uses mice package
-
 ```
-
-
-
 ```{r}
 df_na <- rename(df_na,Country=country,CreditScore=credit_score, Gender=gender, Age=age, Tenure=tenure, BalanceInBank=balance, NumberOfProducts=products_number, CreditCardStatus=credit_card, MembershipStatus=active_member, SalaryEstimate=estimated_salary, ChurnStatus=churn )
-
 df_na
 ```
-
-```{r}
-
-```
-
-
-Convert NumberofProducts, country and gender to factors
+#Convert NumberofProducts, country and gender to factors
 ```{r}
 df_na$NumberOfProducts <- as.factor(df_na$NumberOfProducts)
 df_na$Country <- as.factor(df_na$Country)
@@ -105,26 +88,19 @@ df_na$CreditCardStatus <- as.factor(df_na$CreditCardStatus)
 df_na$MembershipStatus <- as.factor(df_na$MembershipStatus)
 
 ```
-
 ```{r}
 summary(df_na)
 
 str(df_na)
 ```
-
-Impute df_na with mice using linear regression for numerical varaible and random forest for factors
-https://www.youtube.com/watch?v=sNNoTd7xI-4&t=1331s
-
+#Impute df_na with mice using linear regression for numerical varaible and random forest for factors
+#https://www.youtube.com/watch?v=sNNoTd7xI-4&t=1331s
 ```{r}
 #methods(mice)
 
 my_imp <- mice(df_na, m=5,method = c("norm.predict","rf","rf","norm.predict","norm.predict","norm.predict","rf","rf","rf","norm.predict","rf"), maxit=20)
 
-
-
 ```
-
-
 Comparing estimated values with the mean values of the numerical features. The imputations have 5 different data frame. Choose the data which estimated values are near to the mean.
 ```{r}
 summary(df_na$Age)
@@ -141,8 +117,6 @@ my_imp$imp$SalaryEstimate
 
 
 ```
-
-
 The 5th dataset is chosen since the estimated values have a smaller deviation to the mean value.
 
 ```{r}
